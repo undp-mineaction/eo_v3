@@ -21,7 +21,7 @@
       height: calc(100% - 150px);
       width: 100%;
     }
-    
+
     #buttonContainer {
       position: absolute;
       bottom: 290px;
@@ -131,7 +131,6 @@
 
     .incidentList {
       margin-top: 8px;
-      max-height: px;
       overflow-y: auto;
       font-size: 11px;
       color: #ddd;
@@ -288,8 +287,6 @@
             const features = result.features;
             fullFeatureSet = features;
 
-            console.log("Sample acc_dt values from features:", features.slice(0,3).map(f => f.attributes.acc_dt));
-
             const dayMap = {};
             let minDate = null, maxDate = null;
 
@@ -334,7 +331,6 @@
               <strong>Incident count:</strong> ${features.length}
             `;
 
-            // Populate the metadata container
             days.forEach(day => {
               const dayFeatures = dayMap[day] || [];
               const dateObj = new Date(day);
@@ -363,24 +359,34 @@
 
               container.appendChild(dayDiv);
 
+              // Red dot click handler to open popup
+              dayDiv.querySelectorAll(".incidentRecord").forEach((recordEl, idx) => {
+                const redDotBtn = recordEl.querySelector(".redDot");
+                redDotBtn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  const feature = dayFeatures[idx];
+                  view.popup.open({
+                    features: [feature],
+                    location: feature.geometry
+                  });
+                });
+              });
+
               dayDiv.addEventListener("click", () => {
                 view.goTo({
                   target: dayFeatures.map(f => f.geometry),
                   zoom: 9
                 });
-                // Highlight selected day visually
                 document.querySelectorAll(".metadataDay").forEach(d => d.style.backgroundColor = "");
                 dayDiv.style.backgroundColor = "#0468B1";
               });
             });
 
-            // Initial filter by first visible days
             updateOnScroll();
           });
         });
       });
 
-      // Toggle showAllPoints
       toggleFilterBtn.onclick = () => {
         showAllPoints = !showAllPoints;
         if (showAllPoints) {
@@ -392,7 +398,6 @@
         }
       };
 
-      // Update filter based on visible metadata tiles
       function updateOnScroll() {
         if (!casualtiesLayerView || showAllPoints) return;
 
@@ -408,14 +413,12 @@
         });
 
         if (visibleDays.length > 0) {
-          // Use date range filter for the visible days
           const where = visibleDays.map(d => `(acc_dt >= DATE '${d} 00:00:00' AND acc_dt < DATE '${d} 23:59:59')`).join(" OR ");
           casualtiesLayerView.filter = { where };
           rangeDisplay.textContent = `Visible Date Range: ${visibleDays[0]} - ${visibleDays[visibleDays.length - 1]}`;
         }
       }
 
-      // Listen to scroll event on metadata container to update filter
       container.addEventListener("scroll", updateOnScroll);
 
     });
