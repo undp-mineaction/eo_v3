@@ -348,16 +348,17 @@
               stats.wi += a.injured_female_adult || 0;
             });
 
-            countsBox.innerHTML = `
-              <strong><h1>Casualty Summary</h1></strong><br/>
-              <strong><h2>Killed:</h2></strong><br/> 
-              <p style="line-height:10%">Child(M) ${stats.bk} Child(F) ${stats.gk} Adult(M) ${stats.mk} Adult(F) ${stats.wk}</p><br/>
-              <strong><h2>Injured:</h2></strong> 
-              <p>Child(M) ${stats.bi} Child(F) ${stats.gi} Adult(M) ${stats.mi} Adult(F) ${stats.wi}</p><br/>
-              <strong>Time range:</strong> ${days[0]} to ${days[days.length - 1]}<br/>
-              <strong>Incident count:</strong> ${features.length}
-            `;
-
+        countsBox.innerHTML = `
+  <div style="line-height: 1.2; font-family: sans-serif;">
+    <h1 style="margin: 0 0 5px 0;">Casualty Summary</h1>
+    <h2 style="margin: 5px 0;">Killed:</h2>
+    <p style="margin: 0 0 5px 0;">Child(M) ${stats.bk} Child(F) ${stats.gk} Adult(M) ${stats.mk} Adult(F) ${stats.wk}</p>
+    <h2 style="margin: 5px 0;">Injured:</h2>
+    <p style="margin: 0 0 5px 0;">Child(M) ${stats.bi} Child(F) ${stats.gi} Adult(M) ${stats.mi} Adult(F) ${stats.wi}</p>
+    <p style="margin: 5px 0;"><strong>Time range:</strong> ${days[0]} to ${days[days.length - 1]}</p>
+    <p style="margin: 0;"><strong>Incident count:</strong> ${features.length}</p>
+  </div>
+`;
             days.forEach(day => {
               const dayFeatures = dayMap[day] || [];
               const dateObj = new Date(day);
