@@ -350,8 +350,10 @@
 
             countsBox.innerHTML = `
               <strong><h1>Casualty Summary</h1></strong><br/>
-              <strong>Killed:</strong> Child(M) ${stats.bk} Child(F) ${stats.gk} Adult(M) ${stats.mk} Adult(F) ${stats.wk}<br/>
-              <strong>Injured:</strong> Child(M) ${stats.bi} Child(F) ${stats.gi} Adult(M) ${stats.mi} Adult(F) ${stats.wi}<br/>
+              <strong><h2>Killed:</h2></strong><br/> 
+              <p>Child(M) ${stats.bk} Child(F) ${stats.gk} Adult(M) ${stats.mk} Adult(F) ${stats.wk}</p><br/>
+              <strong><h2>Injured:</h2></strong> 
+              <p>Child(M) ${stats.bi} Child(F) ${stats.gi} Adult(M) ${stats.mi} Adult(F) ${stats.wi}</p><br/>
               <strong>Time range:</strong> ${days[0]} to ${days[days.length - 1]}<br/>
               <strong>Incident count:</strong> ${features.length}
             `;
