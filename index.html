@@ -408,7 +408,6 @@
               dayDiv.addEventListener("click", () => {
                 view.goTo({
                   target: dayFeatures.map(f => f.geometry),
-                  zoom: 9
                 });
                 document.querySelectorAll(".metadataDay").forEach(d => d.style.backgroundColor = "");
                 dayDiv.style.backgroundColor = "#ffffff";
