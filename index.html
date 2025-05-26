@@ -405,12 +405,44 @@
                 });
               });
 
-              dayDiv.addEventListener("click", () => {
-                view.goTo({
-                  target: dayFeatures.map(f => f.geometry),
-                });
-                document.querySelectorAll(".metadataDay").forEach(d => d.style.backgroundColor = "");
-                dayDiv.style.backgroundColor = "#ffffff";
+      dayDiv.addEventListener("click", () => {
+  if (highlightHandle) {
+    highlightHandle.remove();
+  }
+
+  // Highlight selected points
+  highlightHandle = casualtiesLayerView.highlight(dayFeatures);
+
+  // Smart zoom logic
+  const geometries = dayFeatures.map(f => f.geometry);
+  const extent = geometries[0].extent.clone();
+
+  geometries.forEach(g => extent.expandToInclude(g.extent));
+
+  const extentWidth = extent.width;
+  const kmWidth = extentWidth / 1000;
+
+  let zoomLevel;
+  if (kmWidth < 5) {
+    zoomLevel = 12;
+  } else if (kmWidth < 20) {
+    zoomLevel = 10;
+  } else if (kmWidth < 60) {
+    zoomLevel = 8;
+  } else {
+    zoomLevel = 6;
+  }
+
+  view.goTo({
+    target: extent.center,
+    zoom: zoomLevel
+  });
+
+  // Visual feedback on selection
+  document.querySelectorAll(".metadataDay").forEach(d => d.style.backgroundColor = "");
+  dayDiv.style.backgroundColor = "#ffffff";
+});
+
 
                 // Highlight features on the map
                 highlightHandle = casualtiesLayerView.highlight(dayFeatures);
