@@ -411,6 +411,9 @@
                 });
                 document.querySelectorAll(".metadataDay").forEach(d => d.style.backgroundColor = "");
                 dayDiv.style.backgroundColor = "#ffffff";
+
+                // Highlight features on the map
+                highlightHandle = casualtiesLayerView.highlight(dayFeatures);
               });
             });
 
