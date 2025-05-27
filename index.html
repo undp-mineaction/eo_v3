@@ -316,11 +316,11 @@ let highlightHandle = null;
       const casualtiesLayer = new FeatureLayer({
         url: "https://geosmarthosting.undp.org/arcgis/rest/services/Hosted/Copy_of_accidents_pull/FeatureServer/0",
         outFields: ["*"],
-        definitionExpression: "acc_count <= 785",
+        definitionExpression: "acc_count <= 715",
         popupTemplate: {
           title: "Incident on {acc_dt}",
           content: `
-            <strong>Incident Count:</strong> {acc_count}<br/>
+            <strong>Record Count:</strong> {acc_count}<br/>
             <strong>Total Killed:</strong> {killed}<br/>
             <strong>Total Injured:</strong> {injured}</br>
             <div style="display: flex; gap: 20px; margin-top: 5px;">
@@ -442,7 +442,7 @@ let highlightHandle = null;
     <h2 style="margin: 5px 0;">Injured:</h2>
     <p style="margin: 0 0 5px 0;">Boy: ${stats.bi} | Girl: ${stats.gi} | Man: ${stats.mi} | Woman: ${stats.wi}</p>
     <p style="margin: 5px 0;"><strong>Time range:</strong> ${days[0]} to ${days[days.length - 1]}</p>
-    <p style="margin: 0;"><strong>Incident count:</strong> ${features.length}</p>
+    <p style="margin: 0;"><strong>Total Incidents:</strong> ${features.length}</p>
   </div>
 `;
             days.forEach(day => {
