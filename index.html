@@ -2,12 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Chrono Map</title>
+  <title>UNDP Casualty Timeline</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://js.arcgis.com/4.28/esri/themes/light/main.css" rel="stylesheet" />
   <script src="https://js.arcgis.com/4.28/"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet" />
   <style>
+    
+  @font-face {
+    font-family: 'proxima_nova_rgregular';
+    src: url('https://litmus.com/fonts/Emails/proximanova-regular-webfont.eot');
+    src: url('https://litmus.com/fonts/Emails/proximanova-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('https://litmus.com/fonts/Emails/proximanova-regular-webfont.woff') format('woff'),
+         url('https://litmus.com/fonts/Emails/proximanova-regular-webfont.ttf') format('truetype'),
+         url('https://litmus.com/fonts/Emails/proximanova-regular-webfont.svg#proxima_nova_rgregular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'proxima_nova_rgbold';
+    src: url('https://litmus.com/fonts/Emails/proximanova-bold-webfont.eot');
+    src: url('https://litmus.com/fonts/Emails/proximanova-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('https://litmus.com/fonts/Emails/proximanova-bold-webfont.woff') format('woff'),
+         url('https://litmus.com/fonts/Emails/proximanova-bold-webfont.ttf') format('truetype'),
+         url('https://litmus.com/fonts/Emails/proximanova-bold-webfont.svg#proxima_nova_rgbold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 94%;
+    width: 100%;
+    font-family: 'proxima_nova_rgregular', Arial, sans-serif;
+    background: #121212;
+  }
+
+  /* For bold text where you want Proxima Nova Bold */
+  strong, b {
+    font-family: 'proxima_nova_rgbold', Arial, sans-serif;
+  }
+
+
+
+  /* rest of your styles unchanged */
+  #viewDiv {
+    height: calc(100% - 150px);
+    width: 100%;
+  }
     html, body {
       margin: 0;
       padding: 0;
@@ -17,10 +60,11 @@
       background: #121212;
     }
 
-    #viewDiv {
-      height: calc(100% - 150px);
-      width: 100%;
-    }
+#viewDiv {
+  flex-grow: 1; /* fills remaining space */
+  min-height: 0; /* prevents overflow */
+}
+
 
     #buttonContainer {
       position: absolute;
@@ -200,8 +244,31 @@
     }
 
     .esri-view .esri-view-surface--touch-none:focus::after {
-  outline: none !important;
+    outline: none !important;
+    }
+  
+  /* Fade classes */
+  .fade-in {
+  opacity: 0;
+  animation: fadeIn 2s forwards;
   }
+
+  .fade-out {
+  opacity: 1;
+  animation: fadeOut 2s forwards;
+  }
+
+  @keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
 
 </style>
 </head>
@@ -217,6 +284,8 @@
   <div id="dateRangeDisplay">Visible Date Range: </div>
 
   <script>
+   let currentHighlightedDay = null;
+let highlightHandle = null;
     require([
       "esri/Map",
       "esri/views/MapView",
@@ -224,13 +293,25 @@
     ], function(Map, MapView, FeatureLayer) {
 
       const map = new Map({ basemap: "gray" });
-      const view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [31.1656, 48.3794],
-        zoom: 6,
-        ui: { components: ["attribution"] }
-      });
+     const view = new MapView({
+  container: "viewDiv",
+  map: map,
+  center: [31.1656, 48.3794],
+  zoom: 6,
+  ui: { components: ["attribution"] },
+  constraints: {
+    minZoom: 5,
+    maxZoom: 10,
+    geometry: {
+      type: "extent",
+      xmin: 22.1372,
+      ymin: 44.3865,
+      xmax: 40.2286,
+      ymax: 52.3791,
+      spatialReference: { wkid: 4326 }
+    }
+  }
+});
 
       const casualtiesLayer = new FeatureLayer({
         url: "https://geosmarthosting.undp.org/arcgis/rest/services/Hosted/Copy_of_accidents_pull/FeatureServer/0",
@@ -371,7 +452,7 @@
               const dayNum = dateObj.getDate();
 
               const dayDiv = document.createElement("div");
-              dayDiv.classList.add("metadataDay");
+              dayDiv.classList.add("metadataDay", "fade-in");
               dayDiv.setAttribute("data-day", day);
               dayDiv.title = `${month} ${dayNum}`;
 
@@ -422,7 +503,7 @@
       toggleFilterBtn.onclick = () => {
         showAllPoints = !showAllPoints;
         if (showAllPoints) {
-          toggleFilterBtn.textContent = "Filter For Visible Days";
+          toggleFilterBtn.textContent = "Filter Visible Days";
           casualtiesLayerView.filter = null;
         } else {
           toggleFilterBtn.textContent = "Show All Points";
