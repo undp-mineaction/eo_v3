@@ -29,7 +29,7 @@
     .incidentList::-webkit-scrollbar { display:none; }
     .incidentRecord { display:flex; align-items:center; padding:2px; }
     .redDot { width:20px; height:20px; background:#c5192d; border-radius:50%; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; margin-right:6px; cursor:pointer; }
-    .filterBtn { margin-top:8px; background:#0468b1; color:white; border:none; padding:4px 6px; font-size:11px; border-radius:4px; cursor:pointer; }
+    .filterBtn { margin-top:8px; background:#0468b1; color:white; border:none; padding:4px 6px; font-size:11px; border-radius:4px; }
     #dateRangeDisplay { position:absolute; bottom:0; left:0; right:0; height:40px; background:rgba(0,0,0,0.3); color:white; line-height:40px; padding-left:20px; z-index:10; }
   </style>
 </head>
@@ -58,18 +58,48 @@
   <div id="dateRangeDisplay">Visible Date Range:</div>
 
   <script>
-    require(["esri/Map", "esri/views/MapView","esri/layers/FeatureLayer"], function(Map, MapView, FeatureLayer) {
+    require(["esri/Map","esri/views/MapView","esri/layers/FeatureLayer"], function(Map, MapView, FeatureLayer) {
       const map = new Map({ basemap:"gray" });
-      const view = new MapView({ container:"viewDiv", map, center:[31.1656,48.3794], zoom:6, ui:{components:["attribution"]} });
+      const view = new MapView({
+        container:"viewDiv",
+        map,
+        center:[31.1656,48.3794],
+        zoom:6,
+        ui:{ components:["attribution"] }
+      });
+
       const layer = new FeatureLayer({
         url:"https://geosmarthosting.undp.org/arcgis/rest/services/Hosted/Copy_of_accidents_pull/FeatureServer/0",
         outFields:["*"],
-        renderer:{type:"simple", symbol:{type:"simple-marker", color:"#c5192d", size:"20px", outline:{color:"#fff", width:1}}},
+        renderer:{
+          type:"simple",
+          symbol:{
+            type:"simple-marker",
+            color:"#c5192d",
+            size:"20px",
+            outline:{ color:"#fff", width:1 }
+          }
+        },
         labelingInfo:[{
-          labelExpressionInfo:{expression:"$feature.acc_count"},
-          symbol:{type:"text", color:"white", haloColor:"#121212", haloSize:"1px", font:{size:10, weight:"normal"}},
+          labelExpressionInfo:{ expression:"$feature.acc_count" },
+          symbol:{
+            type:"text",
+            color:"white",
+            haloColor:"#121212",
+            haloSize:"1px",
+            font:{ size:10, weight:"normal" }
+          },
           labelPlacement:"center-center"
-        }]
+        }],
+        popupTemplate:{
+          title: "<span style='color:#0468B1;font-weight:bold'>Casualties: Killed & Injured</span>",
+          content: (feature) => `
+            <b><span style='color:#0468B1;font-weight:bold'>Type: </span></b> ${feature.graphic.attributes.eo_cat || ""}<br>
+            <b><span style='color:#0468B1;font-weight:bold'>Date: </span></b> ${new Date(feature.graphic.attributes.acc_dt).toLocaleDateString()}<br>
+            <b><span style='color:#0468B1;font-weight:bold'>Kille: </span></b> ${getCasualtyString(feature.graphic,"killed")}<br>
+            <b><span style='color:#0468B1;font-weight:bold'>Injured: </span></b> ${getCasualtyString(feature.graphic,"injured")}
+          `
+        }
       });
       map.add(layer);
 
@@ -81,12 +111,12 @@
       const byDay = {}, byMonth = {}, byYear = {};
       let layerView;
 
-      document.querySelectorAll(".toggleBtn[data-view]").forEach(btn => {
+      document.querySelectorAll(".toggleBtn[data-view]").forEach(btn =>
         btn.addEventListener("click", () => {
           Object.values(containers).forEach(c => c.classList.remove("active"));
           containers[btn.dataset.view].classList.add("active");
-        });
-      });
+        })
+      );
       document.getElementById("resetBtn").addEventListener("click", () => {
         layerView.filter = null;
         dateResetDisplay();
@@ -99,31 +129,45 @@
         return layer.queryFeatures({ where:"1=1", outFields:["*"], returnGeometry:true });
       }).then(res => {
         res.features.forEach(f => {
-          const d = new Date(f.attributes.acc_dt), dayKey=d.toISOString().split("T")[0];
+          const d = new Date(f.attributes.acc_dt);
+          const dayKey = d.toISOString().split("T")[0];
           const mKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
           const mLabel = `${d.toLocaleString("default",{month:"short"}).toUpperCase()} ${d.getFullYear()}`;
           const yKey = d.getFullYear().toString();
 
-          byDay[dayKey] = byDay[dayKey] || []; byDay[dayKey].push(f);
-          byMonth[mKey] = byMonth[mKey] || {label:mLabel, items:[]}; byMonth[mKey].items.push(f);
-          byYear[yKey] = byYear[yKey] || []; byYear[yKey].push(f);
+          byDay[dayKey] = byDay[dayKey] || [];
+          byDay[dayKey].push(f);
+
+          byMonth[mKey] = byMonth[mKey] || {label:mLabel, items:[]};
+          byMonth[mKey].items.push(f);
+
+          byYear[yKey] = byYear[yKey] || [];
+          byYear[yKey].push(f);
         });
         initializeViews(res.features);
       });
 
       function initializeViews(allFeatures) {
-        renderContainer("Days", byDay);
+        renderContainer("Days", sortObjectKeysChronologically(byDay));
         renderContainer("Months", byMonth);
         renderContainer("Years", byYear);
         updateCounts(allFeatures);
       }
+
+      function sortObjectKeysChronologically(obj) {
+        return Object.fromEntries(
+          Object.entries(obj).sort(([a], [b]) => new Date(a) - new Date(b))
+        );
+      }
+
       function resetViews(){
-        renderContainer("Days", byDay);
+        renderContainer("Days", sortObjectKeysChronologically(byDay));
         renderContainer("Months", byMonth);
         renderContainer("Years", byYear);
         Object.values(containers).forEach(c => c.classList.remove("active"));
         containers.Days.classList.add("active");
       }
+
       function dateResetDisplay(){
         document.getElementById("dateRangeDisplay").textContent = "Visible Date Range:";
       }
@@ -131,10 +175,13 @@
       function renderContainer(viewName, data) {
         const cont = containers[viewName];
         cont.innerHTML = "";
-        Object.entries(data).forEach(([key,val])=>{
-          const items = viewName==="Days"? val : val.items || val;
-          const label = viewName==="Days"? key : (val.label || key);
-          const grp = document.createElement("div"); grp.className="metadataGroup"; grp.dataset.label = label;
+        const entries = Object.entries(data);
+        entries.forEach(([key,val])=>{
+          const items = viewName==="Days" ? val : val.items || val;
+          const label = viewName==="Days" ? key : (val.label || key);
+          const grp = document.createElement("div");
+          grp.className="metadataGroup";
+          grp.dataset.label = label;
           grp.innerHTML = `
             <div class="groupValue">${label}</div>
             <div class="incidentList">
@@ -147,7 +194,8 @@
             ${viewName!=="Days"?`<button class="filterBtn" data-view="${viewName}" data-label="${label}">Filter</button>`:""}`;
           cont.appendChild(grp);
         });
-        cont.scrollLeft = 0; cont.onscroll = ()=>onScrollFilter(viewName);
+        cont.scrollLeft = 0;
+        cont.onscroll = () => onScrollFilter(viewName);
         setupInteractions(cont, viewName);
       }
 
@@ -180,22 +228,13 @@
           dot.addEventListener("click", e=>{
             e.stopPropagation();
             const {view:keyView, key, idx} = dot.dataset;
-            const array = keyView==="Days"? byDay[key]
-              : keyView==="Months"? byMonth[Object.keys(byMonth).find(k=>byMonth[k].label===key)].items
+            const arr = keyView==="Days" ? byDay[key]
+              : keyView==="Months" ? byMonth[Object.keys(byMonth).find(k=>byMonth[k].label===key)].items
               : byYear[key];
-            const feat = array[+idx];
-            view.goTo({target:feat.geometry, zoom:12},{duration:1500, easing:"in-out-cubic"})
-              .then(()=> {
-                view.popup.open({
-                  location: feat.geometry,
-                  title: "Casualties: Killed & Injured",
-                  content: `
-                    <b>Type:</b> ${feat.attributes.eo_cat || ""}<br>
-                    <b>Date:</b> ${new Date(feat.attributes.acc_dt).toLocaleDateString()}<br>
-                    <b>Killed:</b> ${getCasualtyString(feat,"killed")}<br>
-                    <b>Injured:</b> ${getCasualtyString(feat,"injured")}
-                  `
-                });
+            const feat = arr[+idx];
+            view.goTo({ target: feat.geometry, zoom:12 }, { duration:1500, easing:"in-out-cubic" })
+              .then(()=>{
+                view.popup.open({ features: [feat], location: feat.geometry });
               });
           });
         });
@@ -218,9 +257,9 @@
             layerView.filter = { where };
             document.getElementById("dateRangeDisplay").textContent = `Filtered: ${label}`;
             resetViews();
-            renderContainer("Days", filteredDays);
+            renderContainer("Days", sortObjectKeysChronologically(filteredDays));
             layer.queryFeatures({ where, outFields:["*"] })
-              .then(r=>updateCounts(r.features));
+              .then(r => updateCounts(r.features));
           });
         });
       }
@@ -239,7 +278,8 @@
           return acc;
         },{kb:0,kg:0,km:0,kw:0,ib:0,ig:0,im:0,iw:0});
 
-        const totalCasualties = counts.kb+counts.kg+counts.km+counts.kw + counts.ib+counts.ig+counts.im+counts.iw;
+        const totalCasualties = counts.kb+counts.kg+counts.km+counts.kw
+                              + counts.ib+counts.ig+counts.im+counts.iw;
 
         document.getElementById("totalCount").textContent = `Total Casualties: ${totalCasualties}`;
         document.getElementById("killedCount").textContent =
