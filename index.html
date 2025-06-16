@@ -11,7 +11,9 @@
     #viewDiv { height:calc(100% - 200px); width:100%; }
     #logoBox { position:absolute; top:20px; right:20px; z-index:20; }
     #logoBox img { height:50px; }
-    #infoBox { position:absolute; top:20px; left:20px; background:rgba(255,255,255,0.6); padding:12px 18px; z-index:10; color:#0468B1; min-width:280px; font-size:14px; }
+    #infoBox { position:absolute; top:20px; left:20px; background:rgba(255,255,255,0.8); padding:12px 18px; z-index:10; color:#0468B1; min-width:300px; font-size:14px; }
+    #infoBox .total { font-size:24px; font-weight:bold; margin-bottom:4px; }
+    #infoBox .label { font-size:14px; margin:4px 0; }
     #buttonContainer { position:absolute; bottom:260px; left:20px; z-index:20; }
     .toggleBtn { padding:6px 12px; background:#0468b1; color:white; border:none; margin-right:4px; cursor:pointer; font-size:13px; border-radius:4px; }
     #resetBtn { background:#555; }
@@ -22,19 +24,26 @@
     .metadataGroup { min-width:140px; padding:10px; color:white; border-right:1px solid #444; display:flex; flex-direction:column; align-items:center; }
     .metaContainer .metadataGroup:nth-child(odd) { background:#2a2a2a; }
     .metaContainer .metadataGroup:nth-child(even) { background:#3c3c3c; }
-    .groupValue { font-size:18px; font-weight:bold; color:#0468B1; margin-bottom:6px; width:100%; text-align:center; }
-    .incidentList { overflow-y:auto; flex-grow:1; font-size:11px; color:#ddd; scrollbar-width:none; width:100%; }
+    .groupValue { font-size:18px; font-weight:bold; color:#0468B1; margin-bottom:6px; }
+    .incidentList { overflow-y:auto; flex-grow:1; font-size:11px; color:#ddd; width:100%; }
     .incidentList::-webkit-scrollbar { display:none; }
     .incidentRecord { display:flex; align-items:center; padding:2px; }
     .redDot { width:20px; height:20px; background:#c5192d; border-radius:50%; color:white; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; margin-right:6px; cursor:pointer; }
-    .filterBtn { margin-top:8px; background:#0468b1; color:white; border:none; padding:4px 6px; font-size:11px; border-radius:4px; cursor:pointer; align-self:start; }
+    .filterBtn { margin-top:8px; background:#0468b1; color:white; border:none; padding:4px 6px; font-size:11px; border-radius:4px; cursor:pointer; }
     #dateRangeDisplay { position:absolute; bottom:0; left:0; right:0; height:40px; background:rgba(0,0,0,0.3); color:white; line-height:40px; padding-left:20px; z-index:10; }
   </style>
 </head>
 <body>
-  <div id="logoBox"><img src="https://raw.githubusercontent.com/undp-mineaction/ed_v2/main/Blue_logo.png" alt="UNDP Logo" /></div>
+  <div id="logoBox">
+    <img src="https://raw.githubusercontent.com/undp-mineaction/ed_v2/main/Blue_logo.png" alt="UNDP Logo">
+  </div>
   <div id="viewDiv"></div>
-  <div id="infoBox"><div id="counts">Loading...</div></div>
+
+  <div id="infoBox">
+    <div class="total" id="totalCount">Total Casualties: 0</div>
+    <div class="label" id="killedCount">Killed — Boys: 0 | Girls: 0 | Men: 0 | Women: 0</div>
+    <div class="label" id="injuredCount">Injured — Boys: 0 | Girls: 0 | Men: 0 | Women: 0</div>
+  </div>
 
   <div id="buttonContainer">
     <button class="toggleBtn" data-view="Days">Daily</button>
@@ -49,12 +58,18 @@
   <div id="dateRangeDisplay">Visible Date Range:</div>
 
   <script>
-    require(["esri/Map","esri/views/MapView","esri/layers/FeatureLayer"], function(Map, MapView, FeatureLayer) {
-      const map = new Map({ basemap: "gray" });
-      const view = new MapView({ container: "viewDiv", map, center: [31.1656,48.3794], zoom: 6 });
+    require(["esri/Map", "esri/views/MapView","esri/layers/FeatureLayer"], function(Map, MapView, FeatureLayer) {
+      const map = new Map({ basemap:"gray" });
+      const view = new MapView({ container:"viewDiv", map, center:[31.1656,48.3794], zoom:6, ui:{components:["attribution"]} });
       const layer = new FeatureLayer({
-        url: "https://geosmarthosting.undp.org/arcgis/rest/services/Hosted/Copy_of_accidents_pull/FeatureServer/0",
-        outFields: ["*"]
+        url:"https://geosmarthosting.undp.org/arcgis/rest/services/Hosted/Copy_of_accidents_pull/FeatureServer/0",
+        outFields:["*"],
+        renderer:{type:"simple", symbol:{type:"simple-marker", color:"#c5192d", size:"20px", outline:{color:"#fff", width:1}}},
+        labelingInfo:[{
+          labelExpressionInfo:{expression:"$feature.acc_count"},
+          symbol:{type:"text", color:"white", haloColor:"#121212", haloSize:"1px", font:{size:10, weight:"normal"}},
+          labelPlacement:"center-center"
+        }]
       });
       map.add(layer);
 
@@ -64,133 +79,186 @@
         Years: document.getElementById("containerYears")
       };
       const byDay = {}, byMonth = {}, byYear = {};
-      let lv;
+      let layerView;
 
-      document.querySelectorAll(".toggleBtn[data-view]").forEach(btn =>
+      document.querySelectorAll(".toggleBtn[data-view]").forEach(btn => {
         btn.addEventListener("click", () => {
           Object.values(containers).forEach(c => c.classList.remove("active"));
           containers[btn.dataset.view].classList.add("active");
-        })
-      );
+        });
+      });
       document.getElementById("resetBtn").addEventListener("click", () => {
-        lv.filter = null;
-        document.getElementById("dateRangeDisplay").textContent = "Visible Date Range:";
-        Object.values(containers).forEach(c => c.classList.remove("active"));
-        containers.Days.classList.add("active");
+        layerView.filter = null;
+        dateResetDisplay();
+        resetViews();
+        updateCounts(Object.values(byDay).flat());
+      });
+
+      view.whenLayerView(layer).then(lv => {
+        layerView = lv;
+        return layer.queryFeatures({ where:"1=1", outFields:["*"], returnGeometry:true });
+      }).then(res => {
+        res.features.forEach(f => {
+          const d = new Date(f.attributes.acc_dt), dayKey=d.toISOString().split("T")[0];
+          const mKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+          const mLabel = `${d.toLocaleString("default",{month:"short"}).toUpperCase()} ${d.getFullYear()}`;
+          const yKey = d.getFullYear().toString();
+
+          byDay[dayKey] = byDay[dayKey] || []; byDay[dayKey].push(f);
+          byMonth[mKey] = byMonth[mKey] || {label:mLabel, items:[]}; byMonth[mKey].items.push(f);
+          byYear[yKey] = byYear[yKey] || []; byYear[yKey].push(f);
+        });
+        initializeViews(res.features);
+      });
+
+      function initializeViews(allFeatures) {
         renderContainer("Days", byDay);
         renderContainer("Months", byMonth);
         renderContainer("Years", byYear);
-      });
+        updateCounts(allFeatures);
+      }
+      function resetViews(){
+        renderContainer("Days", byDay);
+        renderContainer("Months", byMonth);
+        renderContainer("Years", byYear);
+        Object.values(containers).forEach(c => c.classList.remove("active"));
+        containers.Days.classList.add("active");
+      }
+      function dateResetDisplay(){
+        document.getElementById("dateRangeDisplay").textContent = "Visible Date Range:";
+      }
 
-      view.whenLayerView(layer).then(layerView => {
-        lv = layerView;
-        layer.queryFeatures({ where:"1=1", outFields:["*"], returnGeometry:true })
-          .then(res => {
-            res.features.forEach(f => {
-              const d = new Date(f.attributes.acc_dt);
-              const day = d.toISOString().split("T")[0];
-              const keyMonth = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-              const labelMonth = `${d.toLocaleString("default",{month:"short"}).toUpperCase()} ${d.getFullYear()}`;
-              const year = d.getFullYear();
-              (byDay[day] ||= []).push(f);
-              (byMonth[keyMonth] ||= { label: labelMonth, items: [] }).items.push(f);
-              (byYear[year] ||= []).push(f);
-            });
-            renderContainer("Days", byDay);
-            renderContainer("Months", byMonth);
-            renderContainer("Years", byYear);
-            updateCounts(Object.values(byDay).flat());
-          });
-      });
-
-      function renderContainer(name, data) {
-        const cont = containers[name];
+      function renderContainer(viewName, data) {
+        const cont = containers[viewName];
         cont.innerHTML = "";
-        Object.entries(data).forEach(([key,val]) => {
-          const items = name === "Days" ? val : val.items || val;
-          const label = name === "Days" ? key : (name === "Months" ? val.label : key);
-          const div = document.createElement("div");
-          div.className = "metadataGroup";
-          div.dataset.label = label;
-          div.innerHTML = `
+        Object.entries(data).forEach(([key,val])=>{
+          const items = viewName==="Days"? val : val.items || val;
+          const label = viewName==="Days"? key : (val.label || key);
+          const grp = document.createElement("div"); grp.className="metadataGroup"; grp.dataset.label = label;
+          grp.innerHTML = `
             <div class="groupValue">${label}</div>
-            <div class="incidentList">${items.map((f,i)=>`
+            <div class="incidentList">
+              ${items.map((f,i)=>`
                 <div class="incidentRecord">
-                  <div class="redDot" data-type="${name}" data-key="${label}" data-i="${i}">${f.attributes.acc_count}</div>
-                  <div>${f.attributes.eo_cat}</div>
-                </div>`).join("")}</div>
-            ${name !== "Days" ? `<button class="filterBtn" data-type="${name}" data-label="${label}">Filter</button>` : ""}
-          `;
-          cont.appendChild(div);
+                  <div class="redDot" data-view="${viewName}" data-key="${label}" data-idx="${i}">${f.attributes.acc_count}</div>
+                  <div>${f.attributes.eo_cat || ""}</div>
+                </div>`).join("")}
+            </div>
+            ${viewName!=="Days"?`<button class="filterBtn" data-view="${viewName}" data-label="${label}">Filter</button>`:""}`;
+          cont.appendChild(grp);
         });
-        cont.scrollLeft = 0;
-        cont.onscroll = () => handleScroll(name);
-        setupInteractions(cont, name);
+        cont.scrollLeft = 0; cont.onscroll = ()=>onScrollFilter(viewName);
+        setupInteractions(cont, viewName);
       }
 
-      function handleScroll(name) {
-        const keys = Array.from(containers[name].children)
-          .filter(el => {
-            const r = el.getBoundingClientRect(), cr = containers[name].getBoundingClientRect();
-            return r.right >= cr.left && r.left <= cr.right;
-          })
-          .map(el => el.dataset.label);
-        if (!keys.length) return;
+      function onScrollFilter(viewName) {
+        const cont = containers[viewName];
+        const visible = Array.from(cont.children).filter(el=>{
+          const r=el.getBoundingClientRect(), cr=cont.getBoundingClientRect();
+          return r.right>=cr.left && r.left<=cr.right;
+        }).map(el=>el.dataset.label);
+        if(!visible.length) return;
 
-        const clause = keys.map(l => {
-          if (name === "Days") return `(acc_dt BETWEEN DATE '${l} 00:00:00' AND DATE '${l} 23:59:59')`;
-          if (name === "Months") {
-            const [m,y] = l.split(" ");
-            return `(EXTRACT(YEAR FROM acc_dt)=${y} AND EXTRACT(MONTH FROM acc_dt)=${new Date(`${m}1,${y}`).getMonth()+1})`;
+        const where = visible.map(lbl => {
+          if(viewName==="Days") return `(acc_dt BETWEEN DATE '${lbl} 00:00:00' AND DATE '${lbl} 23:59:59')`;
+          if(viewName==="Months") {
+            const [mon,yr] = lbl.split(" ");
+            const monthNum = new Date(`${mon} 1, ${yr}`).getMonth()+1;
+            return `(EXTRACT(YEAR FROM acc_dt)=${yr} AND EXTRACT(MONTH FROM acc_dt)=${monthNum})`;
           }
-          return `(EXTRACT(YEAR FROM acc_dt)=${l})`;
+          return `(EXTRACT(YEAR FROM acc_dt)= ${lbl})`;
         }).join(" OR ");
-        lv.filter = { where: clause };
-        document.getElementById("dateRangeDisplay").textContent = `Visible: ${keys[0]} – ${keys.at(-1)}`;
+
+        layerView.filter = { where };
+        document.getElementById("dateRangeDisplay").textContent = `Visible: ${visible[0]} – ${visible.at(-1)}`;
+        layer.queryFeatures({ where, outFields:["*"] })
+          .then(r => updateCounts(r.features));
       }
 
-      function setupInteractions(container, name) {
-        container.querySelectorAll(".redDot").forEach(el => {
-          el.addEventListener("click", e => {
+      function setupInteractions(container, viewName) {
+        container.querySelectorAll(".redDot").forEach(dot=>{
+          dot.addEventListener("click", e=>{
             e.stopPropagation();
-            const {type,key,i} = el.dataset;
-            const arr = type === "Days" ? byDay[key]
-                      : type === "Months" ? byMonth[Object.keys(byMonth).find(k=>byMonth[k].label===key)].items
-                      : byYear[key];
-            view.popup.open({ features: [arr[i]], location: arr[i].geometry });
+            const {view:keyView, key, idx} = dot.dataset;
+            const array = keyView==="Days"? byDay[key]
+              : keyView==="Months"? byMonth[Object.keys(byMonth).find(k=>byMonth[k].label===key)].items
+              : byYear[key];
+            const feat = array[+idx];
+            view.goTo({target:feat.geometry, zoom:12},{duration:1500, easing:"in-out-cubic"})
+              .then(()=> {
+                view.popup.open({
+                  location: feat.geometry,
+                  title: "Casualties: Killed & Injured",
+                  content: `
+                    <b>Type:</b> ${feat.attributes.eo_cat || ""}<br>
+                    <b>Date:</b> ${new Date(feat.attributes.acc_dt).toLocaleDateString()}<br>
+                    <b>Killed:</b> ${getCasualtyString(feat,"killed")}<br>
+                    <b>Injured:</b> ${getCasualtyString(feat,"injured")}
+                  `
+                });
+              });
           });
         });
 
-        container.querySelectorAll(".filterBtn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const {type,label} = btn.dataset;
-            let where = "";
-            if (type === "Years") where = `EXTRACT(YEAR FROM acc_dt)=${label}`;
-            else {
-              const [m,y] = label.split(" ");
-              where = `EXTRACT(YEAR FROM acc_dt)=${y} AND EXTRACT(MONTH FROM acc_dt)=${new Date(`${m}1,${y}`).getMonth()+1}`;
+        container.querySelectorAll(".filterBtn").forEach(btn=>{
+          btn.addEventListener("click", ()=>{
+            const v = btn.dataset.view, label = btn.dataset.label;
+            let where;
+            let filteredDays;
+            if(v==="Years") {
+              where = `EXTRACT(YEAR FROM acc_dt)=${label}`;
+              filteredDays = Object.fromEntries(Object.entries(byDay).filter(([d])=>d.startsWith(label)));
+            } else {
+              const [mon,yr] = label.split(" ");
+              const mNum = new Date(`${mon} 1, ${yr}`).getMonth()+1;
+              where = `EXTRACT(YEAR FROM acc_dt)=${yr} AND EXTRACT(MONTH FROM acc_dt)=${mNum}`;
+              const prefix = `${yr}-${String(mNum).padStart(2,"0")}`;
+              filteredDays = Object.fromEntries(Object.entries(byDay).filter(([d])=>d.startsWith(prefix)));
             }
-            lv.filter = { where };
+            layerView.filter = { where };
             document.getElementById("dateRangeDisplay").textContent = `Filtered: ${label}`;
-            Object.values(containers).forEach(c => c.classList.remove("active"));
-            containers.Days.classList.add("active");
-            renderContainer("Days", Object.fromEntries(Object.entries(byDay).filter(([d]) =>
-              type === "Years" ? d.startsWith(label) : d.match(/^\d{4}-\d{2}/)
-            )));
+            resetViews();
+            renderContainer("Days", filteredDays);
+            layer.queryFeatures({ where, outFields:["*"] })
+              .then(r=>updateCounts(r.features));
           });
         });
       }
 
-      function updateCounts(all) {
-        const totals = all.reduce((acc,f) => {
-          acc.bk += f.attributes.killed_male_child||0;
-          acc.gk += f.attributes.killed_female_child||0;
-          acc.mk += f.attributes.killed_male_adult||0;
-          acc.wk += f.attributes.killed_female_adult||0;
+      function updateCounts(features) {
+        const counts = features.reduce((acc,f)=>{
+          const a = f.attributes;
+          acc.kb += a.killed_male_child||0;
+          acc.kg += a.killed_female_child||0;
+          acc.km += a.killed_male_adult||0;
+          acc.kw += a.killed_female_adult||0;
+          acc.ib += a.injured_male_child||0;
+          acc.ig += a.injured_female_child||0;
+          acc.im += a.injured_male_adult||0;
+          acc.iw += a.injured_female_adult||0;
           return acc;
-        }, {bk:0,gk:0,mk:0,wk:0});
-        document.getElementById("counts").innerHTML =
-          `<strong>Killed:</strong><br>Boys ${totals.bk} | Girls ${totals.gk} | Men ${totals.mk} | Women ${totals.wk}`;
+        },{kb:0,kg:0,km:0,kw:0,ib:0,ig:0,im:0,iw:0});
+
+        const totalCasualties = counts.kb+counts.kg+counts.km+counts.kw + counts.ib+counts.ig+counts.im+counts.iw;
+
+        document.getElementById("totalCount").textContent = `Total Casualties: ${totalCasualties}`;
+        document.getElementById("killedCount").textContent =
+          `Killed — Boys: ${counts.kb} | Girls: ${counts.kg} | Men: ${counts.km} | Women: ${counts.kw}`;
+        document.getElementById("injuredCount").textContent =
+          `Injured — Boys: ${counts.ib} | Girls: ${counts.ig} | Men: ${counts.im} | Women: ${counts.iw}`;
+      }
+
+      function getCasualtyString(feat, prefix){
+        const map = {
+          [`${prefix}_male_child`]: 'Boys',
+          [`${prefix}_female_child`]: 'Girls',
+          [`${prefix}_male_adult`]: 'Men',
+          [`${prefix}_female_adult`]: 'Women'
+        };
+        return Object.entries(feat.attributes)
+          .filter(([k,v])=>k.startsWith(prefix) && v>0)
+          .map(([k,v])=>`${map[k]}: ${v}`)
+          .join(", ") || "None";
       }
     });
   </script>
